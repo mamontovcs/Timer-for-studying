@@ -14,7 +14,12 @@ namespace TimerForStudying
     {
         private DispatcherTimer _dispatcherTimer;
         private ICommand _startCommand;
+        private ICommand _addTenMinutesCommand;
+        private ICommand _pauseCommand;
+        private ICommand _stopCommand;
         private TimeSpan _timeSpan;
+        private bool _isAddTenMinutesEnabled;
+        private bool _isEditingEnbaled;
         private bool _isStartEnabled;
         private int? _minutes;
         private int? _hours;
@@ -29,9 +34,13 @@ namespace TimerForStudying
             _dispatcherTimer.Tick += OnTimerTick;
 
             StartCommand = new DelegateCommand(OnStartCommand);
+            AddTenMinutesCommand = new DelegateCommand(OnAddTenMinutes);
+            PauseCommand = new DelegateCommand(OnPauseTimer);
+            StopCommand = new DelegateCommand(OnStopAndReset);
             TimeSpan = new TimeSpan(0, 0, 0);
 
-            IsStartEnabled = true;
+            SetDefaultProperties();
+
             Minutes = 0;
             Hours = 0;
         }
@@ -66,6 +75,36 @@ namespace TimerForStudying
             }
         }
 
+        public ICommand StopCommand
+        {
+            get { return _stopCommand; }
+            set
+            {
+                _stopCommand = value;
+                OnPropertyChanged(nameof(StopCommand));
+            }
+        }
+
+        public ICommand PauseCommand
+        {
+            get { return _pauseCommand; }
+            set
+            {
+                _pauseCommand = value;
+                OnPropertyChanged(nameof(PauseCommand));
+            }
+        }
+
+        public ICommand AddTenMinutesCommand
+        {
+            get { return _addTenMinutesCommand; }
+            set
+            {
+                _addTenMinutesCommand = value;
+                OnPropertyChanged(nameof(AddTenMinutesCommand));
+            }
+        }
+
         public ICommand StartCommand
         {
             get { return _startCommand; }
@@ -86,6 +125,26 @@ namespace TimerForStudying
             }
         }
 
+        public bool IsAddTenMinutesEnabled
+        {
+            get { return _isAddTenMinutesEnabled; }
+            set
+            {
+                _isAddTenMinutesEnabled = value;
+                OnPropertyChanged(nameof(IsAddTenMinutesEnabled));
+            }
+        }
+
+        public bool IsEditingEnabled
+        {
+            get { return _isEditingEnbaled; }
+            set
+            {
+                _isEditingEnbaled = value;
+                OnPropertyChanged(nameof(IsEditingEnabled));
+            }
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         public void OnPropertyChanged([CallerMemberName]string property = "")
@@ -93,25 +152,65 @@ namespace TimerForStudying
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
         }
 
+        private void OnStartCommand()
+        {
+            if(TimeSpan == TimeSpan.Zero)
+            {
+                TimeSpan = new TimeSpan(Hours.Value, Minutes.Value, 0);
+            }
+
+            _dispatcherTimer.Start();
+            IsStartEnabled = false;
+            IsAddTenMinutesEnabled = true;
+            IsEditingEnabled = false;
+        }
+
         private void OnTimerTick(object sender, EventArgs e)
         {
-            TimeSpan = TimeSpan.Subtract(TimeSpan.FromSeconds(1));
+            var isZero = TimeSpan == TimeSpan.Zero;
 
-            if (TimeSpan == TimeSpan.Zero)
+            if (isZero)
             {
                 SystemSounds.Exclamation.Play();
                 MessageBox.Show(Resources.StopStudyingMessage, Resources.StopStudyingMessage, MessageBoxButton.OK, MessageBoxImage.Exclamation,
                     MessageBoxResult.OK, MessageBoxOptions.DefaultDesktopOnly);
                 _dispatcherTimer.Stop();
-                IsStartEnabled = true;
+
+                SetDefaultProperties();
+            }
+            else
+            {
+                TimeSpan = TimeSpan.Subtract(TimeSpan.FromSeconds(1));
             }
         }
 
-        private void OnStartCommand()
+        private void OnAddTenMinutes()
         {
-            TimeSpan = new TimeSpan(Hours.Value, Minutes.Value, 0);
-            _dispatcherTimer.Start();
-            IsStartEnabled = false;
+            TimeSpan = TimeSpan.Add(TimeSpan.FromMinutes(10));
+        }
+
+        private void OnPauseTimer()
+        {
+            _dispatcherTimer.Stop();
+            IsStartEnabled = true;
+        }
+
+        private void OnStopAndReset()
+        {
+            _dispatcherTimer.Stop();
+            TimeSpan = TimeSpan.Zero;
+
+            SetDefaultProperties();
+
+            Minutes = 0;
+            Hours = 0;
+        }
+
+        private void SetDefaultProperties()
+        {
+            IsEditingEnabled = true;
+            IsStartEnabled = true;
+            IsAddTenMinutesEnabled = false;
         }
     }
 }
